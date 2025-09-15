@@ -1,0 +1,33 @@
+# Binaries
+tincan
+tincan.exe
+tincan-*
+
+# Go build artifacts
+*.o
+*.a
+*.so
+
+# Test binaries
+*.test
+
+# Coverage files
+*.out
+*.prof
+
+# Dependency directories
+vendor/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Config files with credentials
+tincan.yaml
+.env
