@@ -8,7 +8,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	embeddedcreds "tincan/internal/credentials"
 )
 
 type Client struct {
@@ -17,16 +19,33 @@ type Client struct {
 }
 
 func New() (*Client, error) {
-	// Load configuration from environment or credentials file
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf("unable to load SDK config: %w", err)
+	var cfg aws.Config
+	var err error
+	var bucketName string
+
+	// Check if credentials are embedded at build time
+	if embeddedcreds.HasEmbeddedCredentials() {
+		// Use embedded credentials
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion(embeddedcreds.Region),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+				embeddedcreds.AccessKey,
+				embeddedcreds.SecretKey,
+				"",
+			)),
+		)
+		bucketName = embeddedcreds.BucketName
+	} else {
+		// Fall back to environment variables or AWS credentials file
+		cfg, err = config.LoadDefaultConfig(context.TODO())
+		bucketName = os.Getenv("TINCAN_BUCKET")
+		if bucketName == "" {
+			return nil, fmt.Errorf("TINCAN_BUCKET environment variable is required when credentials are not embedded")
+		}
 	}
 
-	// Get bucket name from environment variable
-	bucketName := os.Getenv("TINCAN_BUCKET")
-	if bucketName == "" {
-		return nil, fmt.Errorf("TINCAN_BUCKET environment variable is required")
+	if err != nil {
+		return nil, fmt.Errorf("unable to load SDK config: %w", err)
 	}
 
 	return &Client{

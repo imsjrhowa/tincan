@@ -1,0 +1,13 @@
+@echo off
+REM Build TinCan with embedded credentials
+REM Usage: Copy this file to build-with-creds.bat and fill in your credentials
+
+set ACCESS_KEY=YOUR_AWS_ACCESS_KEY_HERE
+set SECRET_KEY=YOUR_AWS_SECRET_KEY_HERE
+set REGION=YOUR_AWS_REGION_HERE
+set BUCKET=YOUR_BUCKET_NAME_HERE
+
+go build -ldflags "-X tincan/internal/credentials.AccessKey=%ACCESS_KEY% -X tincan/internal/credentials.SecretKey=%SECRET_KEY% -X tincan/internal/credentials.Region=%REGION% -X tincan/internal/credentials.BucketName=%BUCKET%" -o tincan-embedded.exe ./cmd/tincan
+
+echo Build complete: tincan-embedded.exe
+echo This executable contains embedded credentials and requires no environment variables.

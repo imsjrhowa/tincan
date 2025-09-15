@@ -31,3 +31,4 @@ Thumbs.db
 # Config files with credentials
 tincan.yaml
 .env
+build-with-creds.bat
