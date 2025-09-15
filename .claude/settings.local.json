@@ -4,7 +4,11 @@
       "Bash(go mod:*)",
       "Bash(mkdir:*)",
       "Bash(go:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(git add:*)",
+      "Bash(find:*)",
+      "Bash(xargs git add:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []
