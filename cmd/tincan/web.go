@@ -32,6 +32,7 @@ func runWebServer(cmd *cobra.Command, args []string) {
 	http.HandleFunc("/download", handleDownload)
 	http.HandleFunc("/list", handleList)
 	http.HandleFunc("/clean", handleClean)
+	http.HandleFunc("/delete", handleDelete)
 
 	fmt.Printf("TinCan web interface starting on http://localhost:%s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -43,53 +44,262 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 <head>
     <title>TinCan - File Transfer</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
-        .file-list { background: #f9f9f9; padding: 10px; margin: 10px 0; }
-        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-        input[type="file"] { margin: 10px 0; }
-        .error { color: red; }
-        .success { color: green; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        .header h1 { margin: 0 0 10px 0; font-size: 2.5em; font-weight: 300; }
+        .version { opacity: 0.9; font-size: 0.9em; margin: 0; }
+        .section {
+            background: white;
+            margin: 20px 0;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            border: none;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-weight: 600;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .file-list {
+            background: #f8fafc;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            min-height: 60px;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        .file-item:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
+            transform: translateY(-1px);
+        }
+        .file-name { font-weight: 500; color: #2d3748; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3);
+        }
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-1px);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+        }
+        .btn-download {
+            background: #10b981;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .btn-download:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            background: #f8fafc;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        input[type="file"]:hover {
+            border-color: #4f46e5;
+            background: #f0f4ff;
+        }
+        input[type="text"] {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 200px;
+            transition: border-color 0.2s ease;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .empty-state {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header { padding: 20px; }
+            .header h1 { font-size: 2em; }
+            .section { padding: 20px; }
+            .file-item { flex-direction: column; align-items: stretch; gap: 10px; }
+            input[type="text"] { width: 100%; }
+        }
     </style>
 </head>
 <body>
-    <h1>TinCan File Transfer</h1>
-    <p style="color: #666; font-size: 0.9em; margin-top: -10px;">Version {{.Version}} ({{.GitCommit}}) - Built {{.BuildDate}}</p>
+    <div class="header">
+        <h1>TinCan File Transfer</h1>
+        <p class="version">Version {{.Version}} ({{.GitCommit}}) - Built {{.BuildDate}}</p>
+    </div>
 
     <div class="section">
-        <h2>Upload File</h2>
+        <h2>&#128228; Upload File</h2>
         <form id="uploadForm" enctype="multipart/form-data">
             <input type="file" id="fileInput" name="file" required>
-            <button type="submit">Upload</button>
+            <button type="submit" class="btn-primary" id="uploadBtn">
+                <span id="uploadText">Upload File</span>
+            </button>
         </form>
         <div id="uploadResult"></div>
     </div>
 
     <div class="section">
-        <h2>Files in Bucket</h2>
-        <button onclick="listFiles()">Refresh List</button>
+        <h2>&#128193; Files in Bucket</h2>
+        <button onclick="listFiles()" class="btn-secondary" id="refreshBtn">
+            <span id="refreshText">Refresh List</span>
+        </button>
         <div id="fileList" class="file-list"></div>
     </div>
 
     <div class="section">
-        <h2>Download File</h2>
-        <input type="text" id="downloadKey" placeholder="Enter filename">
-        <button onclick="downloadFile()">Download</button>
+        <h2>&#128229; Download File</h2>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="downloadKey" placeholder="Enter filename">
+            <button onclick="downloadFile()" class="btn-primary">Download</button>
+        </div>
         <div id="downloadResult"></div>
     </div>
 
     <div class="section">
-        <h2>Clean Up</h2>
-        <button onclick="cleanFiles()" style="background-color: #ff4444; color: white;">Delete All Files</button>
+        <h2>&#128465;&#65039; Clean Up</h2>
+        <p style="color: #6b7280; margin-bottom: 15px;">This will delete all files in the bucket. This action cannot be undone.</p>
+        <button onclick="cleanFiles()" class="btn-danger" id="cleanBtn">
+            <span id="cleanText">Delete All Files</span>
+        </button>
         <div id="cleanResult"></div>
     </div>
 
     <script>
+        function showLoading(buttonId, textId, originalText) {
+            const button = document.getElementById(buttonId);
+            const textSpan = document.getElementById(textId);
+            button.disabled = true;
+            textSpan.innerHTML = '<span class="loading"></span>' + 'Processing...';
+        }
+
+        function hideLoading(buttonId, textId, originalText) {
+            const button = document.getElementById(buttonId);
+            const textSpan = document.getElementById(textId);
+            button.disabled = false;
+            textSpan.innerHTML = originalText;
+        }
+
+        function showAlert(containerId, message, isSuccess) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '<div class="alert ' + (isSuccess ? 'alert-success' : 'alert-error') + '">' + message + '</div>';
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
         document.getElementById('uploadForm').onsubmit = function(e) {
             e.preventDefault();
-            const formData = new FormData();
             const fileInput = document.getElementById('fileInput');
+
+            if (!fileInput.files[0]) {
+                showAlert('uploadResult', 'Please select a file to upload.', false);
+                return;
+            }
+
+            const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+
+            showLoading('uploadBtn', 'uploadText', 'Upload File');
 
             fetch('/upload', {
                 method: 'POST',
@@ -97,72 +307,219 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('uploadResult').innerHTML =
-                    data.success ? '<div class="success">' + data.message + '</div>' :
-                                  '<div class="error">' + data.error + '</div>';
-                if (data.success) listFiles();
+                hideLoading('uploadBtn', 'uploadText', 'Upload File');
+                showAlert('uploadResult', data.success ? data.message : data.error, data.success);
+                if (data.success) {
+                    fileInput.value = '';
+                    listFiles();
+                }
+            })
+            .catch(error => {
+                hideLoading('uploadBtn', 'uploadText', 'Upload File');
+                showAlert('uploadResult', 'Upload failed: ' + error.message, false);
             });
         };
 
         function listFiles() {
+            showLoading('refreshBtn', 'refreshText', 'Refresh List');
+
             fetch('/list')
             .then(response => response.json())
             .then(data => {
+                hideLoading('refreshBtn', 'refreshText', 'Refresh List');
                 const fileList = document.getElementById('fileList');
+
                 if (data.success) {
                     if (data.files.length === 0) {
-                        fileList.innerHTML = 'No files in bucket';
+                        fileList.innerHTML = '<div class="empty-state">&#128237; No files in bucket<br><small>Upload a file to get started</small></div>';
                     } else {
-                        fileList.innerHTML = data.files.map(file =>
-                            '<div>' + file + ' <button onclick="downloadFile(\'' + file + '\')">Download</button></div>'
-                        ).join('');
+                        fileList.innerHTML = data.files.map(function(file) {
+                            var fileName = file.name || file;
+                            var fileSize = formatFileSize(file.size || 0);
+                            var uploadDate = file.lastModified ? new Date(file.lastModified).toLocaleDateString() : 'Unknown';
+                            return '<div class="file-item">' +
+                                '<div class="file-info">' +
+                                    '<div class="file-name">&#128196; ' + fileName + '</div>' +
+                                    '<div style="font-size: 0.8em; color: #6b7280;">' +
+                                        fileSize + ' &bull; ' + uploadDate +
+                                    '</div>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<button onclick="downloadFile(\'' + fileName + '\')" class="btn-download">' +
+                                        '&#128229; Download' +
+                                    '</button>' +
+                                    '<button onclick="deleteFile(\'' + fileName + '\')" class="btn-danger" style="padding: 6px 12px; font-size: 12px; margin-left: 5px;">' +
+                                        '&#128465;&#65039; Delete' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>';
+                        }).join('');
                     }
                 } else {
-                    fileList.innerHTML = '<div class="error">' + data.error + '</div>';
+                    fileList.innerHTML = '<div class="alert alert-error">' + data.error + '</div>';
                 }
+            })
+            .catch(error => {
+                hideLoading('refreshBtn', 'refreshText', 'Refresh List');
+                document.getElementById('fileList').innerHTML = '<div class="alert alert-error">Failed to load files: ' + error.message + '</div>';
             });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         function downloadFile(filename) {
             const key = filename || document.getElementById('downloadKey').value;
-            if (!key) return;
+            if (!key) {
+                showAlert('downloadResult', 'Please enter a filename to download.', false);
+                return;
+            }
 
+            showAlert('downloadResult', 'Starting download...', true);
             window.open('/download?key=' + encodeURIComponent(key));
+
+            if (!filename) {
+                document.getElementById('downloadKey').value = '';
+            }
+        }
+
+        function deleteFile(filename) {
+            if (!confirm('Are you sure you want to delete "' + filename + '"?\n\nThis action cannot be undone.')) {
+                return;
+            }
+
+            fetch('/delete?key=' + encodeURIComponent(filename), { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('fileList', 'File deleted successfully', true);
+                    listFiles();
+                } else {
+                    showAlert('fileList', 'Failed to delete file: ' + data.error, false);
+                }
+            })
+            .catch(error => {
+                showAlert('fileList', 'Delete failed: ' + error.message, false);
+            });
         }
 
         function cleanFiles() {
-            // First get the list of files to show what will be deleted
+            showLoading('cleanBtn', 'cleanText', 'Delete All Files');
+
             fetch('/list')
             .then(response => response.json())
             .then(data => {
+                hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
+
                 if (!data.success) {
-                    document.getElementById('cleanResult').innerHTML = '<div class="error">' + data.error + '</div>';
+                    showAlert('cleanResult', data.error, false);
                     return;
                 }
 
                 if (data.files.length === 0) {
-                    document.getElementById('cleanResult').innerHTML = '<div class="success">No files to delete</div>';
+                    showAlert('cleanResult', 'No files to delete', true);
                     return;
                 }
 
-                const fileList = data.files.map(file => '- ' + file).join('\n');
-                const confirmMessage = 'The following ' + data.files.length + ' files will be deleted:\n\n' + fileList + '\n\nAre you sure you want to delete these files?';
 
-                if (!confirm(confirmMessage)) return;
+				const fileList = data.files.map(file => '- ' + file).join('\n');
+                const confirmMessage = 'WARNING: This will permanently delete ALL ' + data.files.length + ' files!\n\nFiles to be deleted:\n' + fileList + '\n\nType "DELETE" to confirm:';
+
+                const userInput = prompt(confirmMessage);
+                if (userInput !== 'DELETE') {
+                    showAlert('cleanResult', 'Clean operation cancelled.', true);
+                    return;
+                }
+
+                showLoading('cleanBtn', 'cleanText', 'Delete All Files');
 
                 fetch('/clean', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('cleanResult').innerHTML =
-                        data.success ? '<div class="success">' + data.message + '</div>' :
-                                      '<div class="error">' + data.error + '</div>';
+                    hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
+                    showAlert('cleanResult', data.success ? data.message : data.error, data.success);
                     if (data.success) listFiles();
+                })
+                .catch(error => {
+                    hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
+                    showAlert('cleanResult', 'Clean failed: ' + error.message, false);
                 });
+            })
+            .catch(error => {
+                hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
+                showAlert('cleanResult', 'Failed to get file list: ' + error.message, false);
             });
         }
 
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                document.getElementById('fileInput').click();
+            }
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                listFiles();
+            }
+            if (e.key === 'Escape') {
+                document.getElementById('downloadKey').value = '';
+                document.querySelectorAll('.alert').forEach(alert => alert.remove());
+            }
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(listFiles, 30000);
+
         // Load file list on page load
         listFiles();
+
+        // Add drag and drop support
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.querySelector('.section');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadSection.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadSection.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadSection.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadSection.style.background = '#f0f4ff';
+            uploadSection.style.borderColor = '#4f46e5';
+        }
+
+        function unhighlight(e) {
+            uploadSection.style.background = '';
+            uploadSection.style.borderColor = '';
+        }
+
+        uploadSection.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                fileInput.files = files;
+                document.getElementById('uploadForm').dispatchEvent(new Event('submit'));
+            }
+        }
     </script>
 </body>
 </html>`
@@ -305,6 +662,33 @@ func handleClean(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSONResponse(w, map[string]interface{}{"success": true, "message": fmt.Sprintf("Deleted %d files", len(files))})
+}
+
+func handleDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "DELETE" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Missing key parameter"})
+		return
+	}
+
+	client, err := s3client.New()
+	if err != nil {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "S3 client error: " + err.Error()})
+		return
+	}
+
+	err = client.Delete(key)
+	if err != nil {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Failed to delete file: " + err.Error()})
+		return
+	}
+
+	writeJSONResponse(w, map[string]interface{}{"success": true, "message": "File deleted successfully"})
 }
 
 func writeJSONResponse(w http.ResponseWriter, data map[string]interface{}) {

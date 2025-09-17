@@ -43,7 +43,7 @@ TinCan/
 - [ ] **File Metadata**: Store and retrieve file metadata
 - [ ] **Batch Operations**: Support for uploading/downloading multiple files
 - [ ] **Expiration**: Automatic file expiration/cleanup
-- [ ] **Web UI Enhancements**: Improve web interface functionality
+- [x] **Web UI Enhancements**: Modern design, drag-and-drop, individual file deletion, progress indicators, keyboard shortcuts
 
 ### Low Priority
 - [ ] **Plugin System**: Allow custom upload/download handlers
