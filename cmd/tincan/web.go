@@ -54,6 +54,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
     <h1>TinCan File Transfer</h1>
+    <p style="color: #666; font-size: 0.9em; margin-top: -10px;">Version {{.Version}} ({{.GitCommit}}) - Built {{.BuildDate}}</p>
 
     <div class="section">
         <h2>Upload File</h2>
@@ -167,7 +168,18 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 </html>`
 
 	w.Header().Set("Content-Type", "text/html")
-	template.Must(template.New("home").Parse(tmpl)).Execute(w, nil)
+
+	data := struct {
+		Version   string
+		GitCommit string
+		BuildDate string
+	}{
+		Version:   Version,
+		GitCommit: GitCommit,
+		BuildDate: BuildDate,
+	}
+
+	template.Must(template.New("home").Parse(tmpl)).Execute(w, data)
 }
 
 func handleUpload(w http.ResponseWriter, r *http.Request) {

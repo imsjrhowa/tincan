@@ -7,6 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildDate = "unknown"
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "tincan",
 	Short: "TinCan - Simple file transfer via S3",
@@ -26,4 +32,5 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(cleanCmd)
 	rootCmd.AddCommand(webCmd)
+	rootCmd.AddCommand(versionCmd)
 }

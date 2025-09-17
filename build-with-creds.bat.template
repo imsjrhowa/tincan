@@ -6,8 +6,17 @@ set ACCESS_KEY=YOUR_AWS_ACCESS_KEY_HERE
 set SECRET_KEY=YOUR_AWS_SECRET_KEY_HERE
 set REGION=YOUR_AWS_REGION_HERE
 set BUCKET=YOUR_BUCKET_NAME_HERE
+set VERSION=1.0.0
 
-go build -ldflags "-X tincan/internal/credentials.AccessKey=%ACCESS_KEY% -X tincan/internal/credentials.SecretKey=%SECRET_KEY% -X tincan/internal/credentials.Region=%REGION% -X tincan/internal/credentials.BucketName=%BUCKET%" -o tincan-embedded.exe ./cmd/tincan
+REM Get git commit (fallback to "unknown" if git is not available)
+for /f "tokens=*" %%i in ('git rev-parse --short HEAD 2^>nul') do set GIT_COMMIT=%%i
+if "%GIT_COMMIT%"=="" set GIT_COMMIT=unknown
+
+REM Get build date (fallback to "unknown" if date command fails)
+for /f "tokens=*" %%i in ('powershell -command "[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')" 2^>nul') do set BUILD_DATE=%%i
+if "%BUILD_DATE%"=="" set BUILD_DATE=unknown
+
+go build -ldflags "-X tincan/internal/credentials.AccessKey=%ACCESS_KEY% -X tincan/internal/credentials.SecretKey=%SECRET_KEY% -X tincan/internal/credentials.Region=%REGION% -X tincan/internal/credentials.BucketName=%BUCKET% -X main.Version=%VERSION% -X main.GitCommit=%GIT_COMMIT% -X main.BuildDate=%BUILD_DATE%" -o tincan-embedded.exe ./cmd/tincan
 
 echo Build complete: tincan-embedded.exe
 echo This executable contains embedded credentials and requires no environment variables.
