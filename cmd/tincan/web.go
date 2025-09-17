@@ -30,6 +30,7 @@ func runWebServer(cmd *cobra.Command, args []string) {
 	http.HandleFunc("/", handleHome)
 	http.HandleFunc("/upload", handleUpload)
 	http.HandleFunc("/download", handleDownload)
+	http.HandleFunc("/validate", handleValidate)
 	http.HandleFunc("/list", handleList)
 	http.HandleFunc("/clean", handleClean)
 	http.HandleFunc("/delete", handleDelete)
@@ -175,6 +176,29 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             border-color: #4f46e5;
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
+        .auto-refresh-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .auto-refresh-control label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #4b5563;
+            cursor: pointer;
+        }
+        input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
         .alert {
             padding: 12px 16px;
             border-radius: 6px;
@@ -240,16 +264,29 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 
     <div class="section">
         <h2>&#128193; Files in Bucket</h2>
-        <button onclick="listFiles()" class="btn-secondary" id="refreshBtn">
-            <span id="refreshText">Refresh List</span>
-        </button>
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <button onclick="listFiles()" class="btn-secondary" id="refreshBtn">
+                <span id="refreshText">Refresh List</span>
+            </button>
+            <div class="auto-refresh-control">
+                <label>
+                    <input type="radio" name="autoRefresh" value="off" checked id="autoRefreshOff">
+                    Auto-refresh: Off
+                </label>
+                <label>
+                    <input type="radio" name="autoRefresh" value="on" id="autoRefreshOn">
+                    <span id="autoRefreshLabel">Auto-refresh: On (30s)</span>
+                </label>
+            </div>
+        </div>
         <div id="fileList" class="file-list"></div>
     </div>
 
     <div class="section">
         <h2>&#128229; Download File</h2>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="downloadKey" placeholder="Enter filename">
+            <input type="text" id="downloadKey" placeholder="Enter filename" list="fileNames">
+            <datalist id="fileNames"></datalist>
             <button onclick="downloadFile()" class="btn-primary">Download</button>
         </div>
         <div id="downloadResult"></div>
@@ -283,8 +320,29 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             const container = document.getElementById(containerId);
             container.innerHTML = '<div class="alert ' + (isSuccess ? 'alert-success' : 'alert-error') + '">' + message + '</div>';
             setTimeout(() => {
-                container.innerHTML = '';
+                if (container.innerHTML.includes(message)) {
+                    container.innerHTML = '';
+                }
             }, 5000);
+        }
+
+        function validateFileName(filename) {
+            if (!filename || filename.trim() === '') {
+                return { valid: false, error: 'Filename cannot be empty' };
+            }
+
+            // Check for invalid characters
+            const invalidChars = /[<>:"/\\|?*\x00-\x1f]/;
+            if (invalidChars.test(filename)) {
+                return { valid: false, error: 'Filename contains invalid characters' };
+            }
+
+            // Check filename length
+            if (filename.length > 255) {
+                return { valid: false, error: 'Filename is too long (max 255 characters)' };
+            }
+
+            return { valid: true };
         }
 
         document.getElementById('uploadForm').onsubmit = function(e) {
@@ -296,8 +354,24 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 return;
             }
 
+            const file = fileInput.files[0];
+
+            // Validate file size (50MB limit)
+            const maxSize = 50 * 1024 * 1024; // 50MB
+            if (file.size > maxSize) {
+                showAlert('uploadResult', 'File is too large. Maximum size is 50MB.', false);
+                return;
+            }
+
+            // Validate filename
+            const validation = validateFileName(file.name);
+            if (!validation.valid) {
+                showAlert('uploadResult', validation.error, false);
+                return;
+            }
+
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            formData.append('file', file);
 
             showLoading('uploadBtn', 'uploadText', 'Upload File');
 
@@ -305,13 +379,20 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 hideLoading('uploadBtn', 'uploadText', 'Upload File');
-                showAlert('uploadResult', data.success ? data.message : data.error, data.success);
                 if (data.success) {
+                    showAlert('uploadResult', data.message + ' (' + formatFileSize(file.size) + ')', true);
                     fileInput.value = '';
                     listFiles();
+                } else {
+                    showAlert('uploadResult', data.error, false);
                 }
             })
             .catch(error => {
@@ -336,7 +417,13 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                         fileList.innerHTML = data.files.map(function(file) {
                             var fileName = file.name || file;
                             var fileSize = formatFileSize(file.size || 0);
-                            var uploadDate = file.lastModified ? new Date(file.lastModified).toLocaleDateString() : 'Unknown';
+                            var uploadDate = 'Unknown';
+
+                            if (file.lastModified) {
+                                var date = new Date(file.lastModified);
+                                uploadDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+
                             return '<div class="file-item">' +
                                 '<div class="file-info">' +
                                     '<div class="file-name">&#128196; ' + fileName + '</div>' +
@@ -355,6 +442,12 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                             '</div>';
                         }).join('');
                     }
+
+                    // Update autocomplete datalist
+                    const datalist = document.getElementById('fileNames');
+                    datalist.innerHTML = data.files.map(function(file) {
+                        return '<option value="' + (file.name || file) + '">';
+                    }).join('');
                 } else {
                     fileList.innerHTML = '<div class="alert alert-error">' + data.error + '</div>';
                 }
@@ -374,18 +467,48 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
         }
 
         function downloadFile(filename) {
-            const key = filename || document.getElementById('downloadKey').value;
+            const key = filename || document.getElementById('downloadKey').value.trim();
             if (!key) {
                 showAlert('downloadResult', 'Please enter a filename to download.', false);
                 return;
             }
 
-            showAlert('downloadResult', 'Starting download...', true);
-            window.open('/download?key=' + encodeURIComponent(key));
-
-            if (!filename) {
-                document.getElementById('downloadKey').value = '';
+            // Validate filename format
+            const validation = validateFileName(key);
+            if (!validation.valid) {
+                showAlert('downloadResult', validation.error, false);
+                return;
             }
+
+            showAlert('downloadResult', 'Validating file...', true);
+
+            // First validate that the file exists
+            fetch('/validate?key=' + encodeURIComponent(key))
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showAlert('downloadResult', 'Starting download...', true);
+                    window.open('/download?key=' + encodeURIComponent(key));
+
+                    // Clear the input field and show success message after a delay
+                    setTimeout(() => {
+                        if (!filename) {
+                            document.getElementById('downloadKey').value = '';
+                        }
+                        showAlert('downloadResult', 'Download started successfully!', true);
+                    }, 1000);
+                } else {
+                    showAlert('downloadResult', data.error, false);
+                }
+            })
+            .catch(error => {
+                showAlert('downloadResult', 'Validation failed: ' + error.message, false);
+            });
         }
 
         function deleteFile(filename) {
@@ -472,8 +595,58 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             }
         });
 
-        // Auto-refresh every 30 seconds
-        setInterval(listFiles, 30000);
+        // Auto-refresh control
+        let autoRefreshInterval = null;
+        let countdownInterval = null;
+        let countdownSeconds = 0;
+
+        function updateCountdown() {
+            const label = document.getElementById('autoRefreshLabel');
+            if (countdownSeconds > 0) {
+                label.textContent = 'Auto-refresh: On (' + countdownSeconds + 's)';
+                countdownSeconds--;
+            } else {
+                label.textContent = 'Auto-refresh: On (refreshing...)';
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const isAutoRefreshOn = document.getElementById('autoRefreshOn').checked;
+
+            // Clear existing intervals
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+
+            // Set new intervals if auto-refresh is on
+            if (isAutoRefreshOn) {
+                // Reset countdown
+                countdownSeconds = 30;
+                updateCountdown();
+
+                // Start countdown
+                countdownInterval = setInterval(updateCountdown, 1000);
+
+                // Set refresh interval
+                autoRefreshInterval = setInterval(function() {
+                    listFiles();
+                    // Reset countdown after refresh
+                    countdownSeconds = 30;
+                }, 30000);
+            } else {
+                // Reset label when turned off
+                document.getElementById('autoRefreshLabel').textContent = 'Auto-refresh: On (30s)';
+            }
+        }
+
+        // Add event listeners to radio buttons
+        document.getElementById('autoRefreshOff').addEventListener('change', toggleAutoRefresh);
+        document.getElementById('autoRefreshOn').addEventListener('change', toggleAutoRefresh);
 
         // Load file list on page load
         listFiles();
@@ -646,22 +819,59 @@ func handleClean(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get list of files first
-	files, err := client.List()
+	fileNames, err := client.ListNames()
 	if err != nil {
 		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Failed to list files: " + err.Error()})
 		return
 	}
 
 	// Delete each file
-	for _, file := range files {
-		err = client.Delete(file)
+	for _, fileName := range fileNames {
+		err = client.Delete(fileName)
 		if err != nil {
-			writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Failed to delete " + file + ": " + err.Error()})
+			writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Failed to delete " + fileName + ": " + err.Error()})
 			return
 		}
 	}
 
-	writeJSONResponse(w, map[string]interface{}{"success": true, "message": fmt.Sprintf("Deleted %d files", len(files))})
+	writeJSONResponse(w, map[string]interface{}{"success": true, "message": fmt.Sprintf("Deleted %d files", len(fileNames))})
+}
+
+func handleValidate(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Missing key parameter"})
+		return
+	}
+
+	client, err := s3client.New()
+	if err != nil {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "S3 client error: " + err.Error()})
+		return
+	}
+
+	// Get list of files to check if the file exists
+	fileNames, err := client.ListNames()
+	if err != nil {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "Failed to validate file: " + err.Error()})
+		return
+	}
+
+	// Check if the file exists in the list
+	fileExists := false
+	for _, fileName := range fileNames {
+		if fileName == key {
+			fileExists = true
+			break
+		}
+	}
+
+	if !fileExists {
+		writeJSONResponse(w, map[string]interface{}{"success": false, "error": "File '" + key + "' not found in bucket"})
+		return
+	}
+
+	writeJSONResponse(w, map[string]interface{}{"success": true, "message": "File exists and is ready for download"})
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {

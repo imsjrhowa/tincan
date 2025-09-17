@@ -31,7 +31,8 @@ func runClean(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("The following %d files will be deleted:\n", len(files))
 	for _, file := range files {
-		fmt.Printf("  - %s\n", file)
+		size := formatBytes(file.Size)
+		fmt.Printf("  - %s (%s)\n", file.Name, size)
 	}
 	fmt.Print("\nAre you sure you want to delete these files? (y/N): ")
 
@@ -43,13 +44,14 @@ func runClean(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, file := range files {
-		if err := client.Delete(file); err != nil {
-			fmt.Printf("Failed to delete %s: %v\n", file, err)
+		if err := client.Delete(file.Name); err != nil {
+			fmt.Printf("Failed to delete %s: %v\n", file.Name, err)
 		} else {
-			fmt.Printf("Deleted %s\n", file)
+			fmt.Printf("Deleted %s\n", file.Name)
 		}
 	}
 
 	fmt.Println("Clean completed")
 	return nil
 }
+

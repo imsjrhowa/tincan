@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -12,6 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	embeddedcreds "tincan/internal/credentials"
 )
+
+type FileInfo struct {
+	Name         string    `json:"name"`
+	Size         int64     `json:"size"`
+	LastModified time.Time `json:"lastModified"`
+}
 
 type Client struct {
 	s3Client   *s3.Client
@@ -97,7 +104,7 @@ func (c *Client) Download(key, filePath string) error {
 	return nil
 }
 
-func (c *Client) List() ([]string, error) {
+func (c *Client) List() ([]FileInfo, error) {
 	result, err := c.s3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
 		Bucket: aws.String(c.bucketName),
 	})
@@ -105,12 +112,39 @@ func (c *Client) List() ([]string, error) {
 		return nil, fmt.Errorf("unable to list objects in %q: %w", c.bucketName, err)
 	}
 
-	var files []string
+	var files []FileInfo
 	for _, obj := range result.Contents {
-		files = append(files, *obj.Key)
+		if obj.Key != nil {
+			fileInfo := FileInfo{
+				Name: *obj.Key,
+				Size: 0,
+			}
+			if obj.Size != nil {
+				fileInfo.Size = *obj.Size
+			}
+			if obj.LastModified != nil {
+				fileInfo.LastModified = *obj.LastModified
+			}
+			files = append(files, fileInfo)
+		}
 	}
 
 	return files, nil
+}
+
+// ListNames returns just the filenames for backward compatibility
+func (c *Client) ListNames() ([]string, error) {
+	files, err := c.List()
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, file := range files {
+		names = append(names, file.Name)
+	}
+
+	return names, nil
 }
 
 func (c *Client) Delete(key string) error {

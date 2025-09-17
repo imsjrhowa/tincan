@@ -31,8 +31,23 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Files in bucket:")
 	for _, file := range files {
-		fmt.Printf("  %s\n", file)
+		size := formatBytes(file.Size)
+		date := file.LastModified.Format("2006-01-02 15:04:05")
+		fmt.Printf("  %-40s %10s  %s\n", file.Name, size, date)
 	}
 
 	return nil
+}
+
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
