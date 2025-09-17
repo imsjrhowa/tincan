@@ -15,8 +15,13 @@ A simple CLI tool for transferring files between machines using Amazon S3 as int
 ## Setup
 
 1. **Install Go** (if not already installed)
+
 2. **Build the binary:**
    ```bash
+   # Using Makefile (recommended)
+   make build
+
+   # Or manually
    go build -o tincan ./cmd/tincan
    ```
 
@@ -30,7 +35,7 @@ A simple CLI tool for transferring files between machines using Amazon S3 as int
    export TINCAN_BUCKET=your-bucket-name
    ```
 
-   Or create a config file at `~/.config/tincan.yaml`:
+   Or create a config file at `~/.config/tincan.yaml` or `./tincan.yaml`:
    ```yaml
    bucket_name: your-bucket-name
    aws_region: us-east-1
@@ -95,20 +100,41 @@ Your IAM user needs these S3 permissions:
 
 ## Building Options
 
-### Standard Build (requires environment variables/config)
+### Using Makefile (Recommended)
+
+```bash
+# Build for current platform
+make build
+
+# Build for all platforms (Windows, macOS, Linux)
+make build-all
+
+# Run tests
+make test
+
+# Clean build artifacts
+make clean
+
+# Install to GOPATH/bin
+make install
+
+# Run directly without building
+make run
+```
+
+### Manual Build (requires environment variables/config)
 
 ```bash
 # Current platform
 go build -o tincan ./cmd/tincan
 
-# Windows
+# All platforms manually
 GOOS=windows GOARCH=amd64 go build -o tincan.exe ./cmd/tincan
-
-# macOS
 GOOS=darwin GOARCH=amd64 go build -o tincan-mac ./cmd/tincan
-
-# Linux
 GOOS=linux GOARCH=amd64 go build -o tincan-linux ./cmd/tincan
+
+# Run tests
+go test -v ./...
 ```
 
 ### Embedded Credentials Build (portable, no setup required)
@@ -140,3 +166,19 @@ This creates `tincan-embedded.exe` - a completely portable executable that:
 - Can be copied to any machine and run immediately
 
 **Security Note:** The `build-with-creds.bat` file (with real credentials) is automatically ignored by Git.
+
+## Architecture
+
+TinCan is built using Go with the following structure:
+
+- **cmd/tincan/**: Main CLI application entry point and command definitions
+  - `main.go`: Root command setup and initialization
+  - Individual command implementations (`upload.go`, `download.go`, `list.go`, `clean.go`, etc.)
+- **pkg/s3client/**: S3 operations abstraction layer - handles all AWS S3 interactions
+- **internal/config/**: Configuration management using Viper - supports YAML files and environment variables
+
+## Dependencies
+
+- `github.com/spf13/cobra`: CLI framework
+- `github.com/spf13/viper`: Configuration management
+- `github.com/aws/aws-sdk-go-v2`: AWS SDK for S3 operations
