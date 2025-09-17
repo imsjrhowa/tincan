@@ -45,49 +45,107 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 <head>
     <title>TinCan - File Transfer</title>
     <style>
+        :root {
+            /* Light theme colors */
+            --bg-primary: #f5f7fa;
+            --bg-secondary: white;
+            --bg-tertiary: #f8fafc;
+            --bg-accent: #f0f4ff;
+            --text-primary: #2c3e50;
+            --text-secondary: #6b7280;
+            --text-tertiary: #4b5563;
+            --border-primary: #e2e8f0;
+            --border-secondary: #cbd5e0;
+            --border-accent: #4f46e5;
+            --header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --button-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            --button-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            --button-success: #10b981;
+            --progress-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --shadow-primary: rgba(0,0,0,0.08);
+            --shadow-secondary: rgba(0,0,0,0.1);
+            --alert-success-bg: #f0fdf4;
+            --alert-success-text: #166534;
+            --alert-success-border: #bbf7d0;
+            --alert-error-bg: #fef2f2;
+            --alert-error-text: #991b1b;
+            --alert-error-border: #fecaca;
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme colors */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-accent: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #cbd5e1;
+            --border-primary: #334155;
+            --border-secondary: #475569;
+            --border-accent: #6366f1;
+            --header-gradient: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%);
+            --button-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --button-danger: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            --button-success: #059669;
+            --progress-gradient: linear-gradient(135deg, #059669 0%, #047857 100%);
+            --shadow-primary: rgba(0,0,0,0.3);
+            --shadow-secondary: rgba(0,0,0,0.4);
+            --alert-success-bg: #064e3b;
+            --alert-success-text: #6ee7b7;
+            --alert-success-border: #047857;
+            --alert-error-bg: #7f1d1d;
+            --alert-error-text: #fca5a5;
+            --alert-error-border: #dc2626;
+        }
+
         * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
             max-width: 900px;
             margin: 0 auto;
             padding: 20px;
-            background: #f5f7fa;
-            color: #2c3e50;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--header-gradient);
             color: white;
             padding: 30px;
             border-radius: 12px;
             margin-bottom: 30px;
             text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 32px var(--shadow-secondary);
         }
-        .header h1 { margin: 0 0 10px 0; font-size: 2.5em; font-weight: 300; }
+        .header h1 { margin: 0 0 5px 0; font-size: 3.5em; font-weight: 700; }
+        .subtitle { margin: 0 0 10px 0; font-size: 1.3em; font-weight: 400; opacity: 0.95; }
         .version { opacity: 0.9; font-size: 0.9em; margin: 0; }
         .section {
-            background: white;
+            background: var(--bg-secondary);
             margin: 20px 0;
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 16px var(--shadow-primary);
             border: none;
+            transition: background-color 0.3s ease;
         }
         .section h2 {
             margin-top: 0;
-            color: #2c3e50;
+            color: var(--text-primary);
             font-weight: 600;
-            border-bottom: 2px solid #ecf0f1;
+            border-bottom: 2px solid var(--border-primary);
             padding-bottom: 10px;
         }
         .file-list {
-            background: #f8fafc;
+            background: var(--bg-tertiary);
             padding: 15px;
             margin: 15px 0;
             border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-primary);
             min-height: 60px;
+            transition: background-color 0.3s ease;
         }
         .file-item {
             display: flex;
@@ -95,17 +153,17 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             align-items: center;
             padding: 10px;
             margin: 5px 0;
-            background: white;
+            background: var(--bg-secondary);
             border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-primary);
             transition: all 0.2s ease;
         }
         .file-item:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e0;
+            background: var(--bg-accent);
+            border-color: var(--border-secondary);
             transform: translateY(-1px);
         }
-        .file-name { font-weight: 500; color: #2d3748; }
+        .file-name { font-weight: 500; color: var(--text-primary); }
         button {
             padding: 10px 20px;
             margin: 5px;
@@ -117,7 +175,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             font-size: 14px;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: var(--button-primary);
             color: white;
         }
         .btn-primary:hover {
@@ -125,15 +183,15 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3);
         }
         .btn-secondary {
-            background: #6b7280;
+            background: var(--text-secondary);
             color: white;
         }
         .btn-secondary:hover {
-            background: #4b5563;
+            background: var(--text-tertiary);
             transform: translateY(-1px);
         }
         .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            background: var(--button-danger);
             color: white;
         }
         .btn-danger:hover {
@@ -141,39 +199,42 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
         }
         .btn-download {
-            background: #10b981;
+            background: var(--button-success);
             color: white;
             padding: 6px 12px;
             font-size: 12px;
         }
         .btn-download:hover {
-            background: #059669;
+            background: #047857;
             transform: translateY(-1px);
         }
         input[type="file"] {
             margin: 10px 0;
             padding: 10px;
-            border: 2px dashed #cbd5e0;
+            border: 2px dashed var(--border-secondary);
             border-radius: 8px;
-            background: #f8fafc;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
             width: 100%;
             transition: all 0.2s ease;
         }
         input[type="file"]:hover {
-            border-color: #4f46e5;
-            background: #f0f4ff;
+            border-color: var(--border-accent);
+            background: var(--bg-accent);
         }
         input[type="text"] {
             padding: 12px;
-            border: 2px solid #e2e8f0;
+            border: 2px solid var(--border-primary);
             border-radius: 6px;
             font-size: 14px;
             width: 200px;
-            transition: border-color 0.2s ease;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
         }
         input[type="text"]:focus {
             outline: none;
-            border-color: #4f46e5;
+            border-color: var(--border-accent);
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
         .auto-refresh-control {
@@ -182,16 +243,17 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             gap: 10px;
             margin: 10px 0;
             padding: 12px;
-            background: #f8fafc;
+            background: var(--bg-tertiary);
             border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-primary);
+            transition: background-color 0.3s ease;
         }
         .auto-refresh-control label {
             display: flex;
             align-items: center;
             gap: 6px;
             font-size: 14px;
-            color: #4b5563;
+            color: var(--text-secondary);
             cursor: pointer;
         }
         input[type="radio"] {
@@ -206,15 +268,15 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
         .progress-bar {
             width: 100%;
             height: 24px;
-            background: #f1f5f9;
+            background: var(--bg-tertiary);
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-primary);
             position: relative;
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: var(--progress-gradient);
             border-radius: 12px;
             transition: width 0.3s ease;
             position: relative;
@@ -227,7 +289,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             transform: translate(-50%, -50%);
             font-size: 12px;
             font-weight: 600;
-            color: #374151;
+            color: var(--text-primary);
             z-index: 10;
         }
         .progress-info {
@@ -235,7 +297,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             justify-content: space-between;
             align-items: center;
             font-size: 13px;
-            color: #6b7280;
+            color: var(--text-secondary);
             margin-top: 5px;
         }
         .hidden {
@@ -248,21 +310,21 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             font-weight: 500;
         }
         .alert-error {
-            background: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
+            background: var(--alert-error-bg);
+            color: var(--alert-error-text);
+            border: 1px solid var(--alert-error-border);
         }
         .alert-success {
-            background: #f0fdf4;
-            color: #166534;
-            border: 1px solid #bbf7d0;
+            background: var(--alert-success-bg);
+            color: var(--alert-success-text);
+            border: 1px solid var(--alert-success-border);
         }
         .loading {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4f46e5;
+            border: 3px solid var(--border-primary);
+            border-top: 3px solid var(--border-accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 10px;
@@ -273,7 +335,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
         }
         .empty-state {
             text-align: center;
-            color: #6b7280;
+            color: var(--text-secondary);
             padding: 40px 20px;
             font-style: italic;
         }
@@ -287,9 +349,10 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
         }
     </style>
 </head>
-<body>
+<body data-theme="dark">
     <div class="header">
-        <h1>TinCan File Transfer</h1>
+        <h1>TINCAN</h1>
+        <p class="subtitle">File Transfer</p>
         <p class="version">Version {{.Version}} ({{.GitCommit}}) - Built {{.BuildDate}}</p>
     </div>
 
@@ -371,6 +434,20 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             </div>
         </div>
         <div id="cleanResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>&#127912; Theme</h2>
+        <div class="auto-refresh-control">
+            <label>
+                <input type="radio" name="theme" value="light" id="themeLight">
+                Light Mode
+            </label>
+            <label>
+                <input type="radio" name="theme" value="dark" id="themeDark" checked>
+                Dark Mode
+            </label>
+        </div>
     </div>
 
     <script>
@@ -867,6 +944,31 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 document.getElementById('uploadForm').dispatchEvent(new Event('submit'));
             }
         }
+
+        // Theme switching functionality
+        function setTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+
+            // Update radio buttons
+            document.getElementById('themeLight').checked = theme === 'light';
+            document.getElementById('themeDark').checked = theme === 'dark';
+        }
+
+        function toggleTheme() {
+            const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
+            setTheme(selectedTheme);
+        }
+
+        // Add event listeners to theme radio buttons
+        document.getElementById('themeLight').addEventListener('change', toggleTheme);
+        document.getElementById('themeDark').addEventListener('change', toggleTheme);
+
+        // Initialize theme from localStorage or default to dark
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+        });
     </script>
 </body>
 </html>`

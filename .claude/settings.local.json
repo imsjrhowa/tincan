@@ -9,7 +9,9 @@
       "Bash(find:*)",
       "Bash(xargs git add:*)",
       "Bash(git check-ignore:*)",
-      "Bash(./tincan version)"
+      "Bash(./tincan version)",
+      "Bash(./tincan web)",
+      "Bash(PORT=8081 ./tincan web)"
     ],
     "deny": [],
     "ask": []
