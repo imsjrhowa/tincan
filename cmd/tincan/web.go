@@ -199,6 +199,48 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             height: 16px;
             cursor: pointer;
         }
+        .progress-container {
+            margin: 15px 0;
+            padding: 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px;
+            transition: width 0.3s ease;
+            position: relative;
+            width: 0%;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            z-index: 10;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        .hidden {
+            display: none;
+        }
         .alert {
             padding: 12px 16px;
             border-radius: 6px;
@@ -259,6 +301,16 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 <span id="uploadText">Upload File</span>
             </button>
         </form>
+        <div id="uploadProgress" class="progress-container hidden">
+            <div class="progress-bar">
+                <div id="uploadProgressFill" class="progress-fill"></div>
+                <div id="uploadProgressText" class="progress-text">0%</div>
+            </div>
+            <div id="uploadProgressInfo" class="progress-info">
+                <span id="uploadFileName"></span>
+                <span id="uploadFileSize"></span>
+            </div>
+        </div>
         <div id="uploadResult"></div>
     </div>
 
@@ -289,6 +341,16 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             <datalist id="fileNames"></datalist>
             <button onclick="downloadFile()" class="btn-primary">Download</button>
         </div>
+        <div id="downloadProgress" class="progress-container hidden">
+            <div class="progress-bar">
+                <div id="downloadProgressFill" class="progress-fill"></div>
+                <div id="downloadProgressText" class="progress-text">0%</div>
+            </div>
+            <div id="downloadProgressInfo" class="progress-info">
+                <span id="downloadFileName"></span>
+                <span id="downloadFileSize"></span>
+            </div>
+        </div>
         <div id="downloadResult"></div>
     </div>
 
@@ -298,6 +360,16 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
         <button onclick="cleanFiles()" class="btn-danger" id="cleanBtn">
             <span id="cleanText">Delete All Files</span>
         </button>
+        <div id="cleanProgress" class="progress-container hidden">
+            <div class="progress-bar">
+                <div id="cleanProgressFill" class="progress-fill"></div>
+                <div id="cleanProgressText" class="progress-text">0%</div>
+            </div>
+            <div id="cleanProgressInfo" class="progress-info">
+                <span id="cleanFileName">Preparing...</span>
+                <span id="cleanFileSize"></span>
+            </div>
+        </div>
         <div id="cleanResult"></div>
     </div>
 
@@ -324,6 +396,32 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                     container.innerHTML = '';
                 }
             }, 5000);
+        }
+
+        function showProgress(containerId, fileName, fileSize) {
+            const container = document.getElementById(containerId);
+            const fileNameEl = document.getElementById(containerId.replace('Progress', 'FileName'));
+            const fileSizeEl = document.getElementById(containerId.replace('Progress', 'FileSize'));
+
+            container.classList.remove('hidden');
+            if (fileNameEl) fileNameEl.textContent = fileName;
+            if (fileSizeEl) fileSizeEl.textContent = formatFileSize(fileSize);
+
+            updateProgress(containerId, 0);
+        }
+
+        function updateProgress(containerId, percentage) {
+            const fillEl = document.getElementById(containerId.replace('Progress', 'ProgressFill'));
+            const textEl = document.getElementById(containerId.replace('Progress', 'ProgressText'));
+
+            if (fillEl) fillEl.style.width = percentage + '%';
+            if (textEl) textEl.textContent = Math.round(percentage) + '%';
+        }
+
+        function hideProgress(containerId) {
+            const container = document.getElementById(containerId);
+            container.classList.add('hidden');
+            updateProgress(containerId, 0);
         }
 
         function validateFileName(filename) {
@@ -374,31 +472,59 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             formData.append('file', file);
 
             showLoading('uploadBtn', 'uploadText', 'Upload File');
+            showProgress('uploadProgress', file.name, file.size);
 
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Server error: ' + response.status);
+            // Use XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+
+            // Track upload progress
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentage = (e.loaded / e.total) * 100;
+                    updateProgress('uploadProgress', percentage);
                 }
-                return response.json();
-            })
-            .then(data => {
-                hideLoading('uploadBtn', 'uploadText', 'Upload File');
-                if (data.success) {
-                    showAlert('uploadResult', data.message + ' (' + formatFileSize(file.size) + ')', true);
-                    fileInput.value = '';
-                    listFiles();
-                } else {
-                    showAlert('uploadResult', data.error, false);
-                }
-            })
-            .catch(error => {
-                hideLoading('uploadBtn', 'uploadText', 'Upload File');
-                showAlert('uploadResult', 'Upload failed: ' + error.message, false);
             });
+
+            // Handle completion
+            xhr.addEventListener('load', function() {
+                hideLoading('uploadBtn', 'uploadText', 'Upload File');
+                hideProgress('uploadProgress');
+
+                if (xhr.status === 200) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            showAlert('uploadResult', data.message + ' (' + formatFileSize(file.size) + ')', true);
+                            fileInput.value = '';
+                            listFiles();
+                        } else {
+                            showAlert('uploadResult', data.error, false);
+                        }
+                    } catch (e) {
+                        showAlert('uploadResult', 'Upload completed but response was invalid', false);
+                    }
+                } else {
+                    showAlert('uploadResult', 'Upload failed: Server error ' + xhr.status, false);
+                }
+            });
+
+            // Handle errors
+            xhr.addEventListener('error', function() {
+                hideLoading('uploadBtn', 'uploadText', 'Upload File');
+                hideProgress('uploadProgress');
+                showAlert('uploadResult', 'Upload failed: Network error', false);
+            });
+
+            // Handle abort
+            xhr.addEventListener('abort', function() {
+                hideLoading('uploadBtn', 'uploadText', 'Upload File');
+                hideProgress('uploadProgress');
+                showAlert('uploadResult', 'Upload cancelled', false);
+            });
+
+            // Start upload
+            xhr.open('POST', '/upload');
+            xhr.send(formData);
         };
 
         function listFiles() {
@@ -480,11 +606,14 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 return;
             }
 
-            showAlert('downloadResult', 'Validating file...', true);
+            // Show progress for validation phase
+            showProgress('downloadProgress', key, 0);
+            updateProgress('downloadProgress', 20);
 
             // First validate that the file exists
             fetch('/validate?key=' + encodeURIComponent(key))
             .then(response => {
+                updateProgress('downloadProgress', 50);
                 if (!response.ok) {
                     throw new Error('Server error: ' + response.status);
                 }
@@ -492,22 +621,41 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
             })
             .then(data => {
                 if (data.success) {
-                    showAlert('downloadResult', 'Starting download...', true);
-                    window.open('/download?key=' + encodeURIComponent(key));
+                    updateProgress('downloadProgress', 80);
 
-                    // Clear the input field and show success message after a delay
-                    setTimeout(() => {
-                        if (!filename) {
-                            document.getElementById('downloadKey').value = '';
+                    // Get file size for display
+                    return fetch('/list').then(response => response.json()).then(listData => {
+                        if (listData.success) {
+                            const fileInfo = listData.files.find(file => (file.name || file) === key);
+                            const fileSize = fileInfo ? fileInfo.size : 0;
+
+                            // Update progress with file size
+                            document.getElementById('downloadFileSize').textContent = formatFileSize(fileSize);
+                            updateProgress('downloadProgress', 100);
+
+                            // Start download
+                            setTimeout(() => {
+                                hideProgress('downloadProgress');
+                                showAlert('downloadResult', 'Download started! Check your browser downloads.', true);
+                                window.open('/download?key=' + encodeURIComponent(key));
+
+                                // Clear the input field
+                                if (!filename) {
+                                    document.getElementById('downloadKey').value = '';
+                                }
+                            }, 500);
+                        } else {
+                            throw new Error('Could not get file information');
                         }
-                        showAlert('downloadResult', 'Download started successfully!', true);
-                    }, 1000);
+                    });
                 } else {
+                    hideProgress('downloadProgress');
                     showAlert('downloadResult', data.error, false);
                 }
             })
             .catch(error => {
-                showAlert('downloadResult', 'Validation failed: ' + error.message, false);
+                hideProgress('downloadProgress');
+                showAlert('downloadResult', 'Download failed: ' + error.message, false);
             });
         }
 
@@ -516,11 +664,14 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 return;
             }
 
+            // Show mini progress in the file list
+            showAlert('fileList', 'Deleting ' + filename + '...', true);
+
             fetch('/delete?key=' + encodeURIComponent(filename), { method: 'DELETE' })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showAlert('fileList', 'File deleted successfully', true);
+                    showAlert('fileList', 'File "' + filename + '" deleted successfully', true);
                     listFiles();
                 } else {
                     showAlert('fileList', 'Failed to delete file: ' + data.error, false);
@@ -560,16 +711,39 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
                 }
 
                 showLoading('cleanBtn', 'cleanText', 'Delete All Files');
+                showProgress('cleanProgress', 'Deleting ' + data.files.length + ' files', 0);
+
+                // Simulate progress during deletion
+                let progressStep = 0;
+                const totalSteps = 10;
+                const progressInterval = setInterval(() => {
+                    progressStep++;
+                    const percentage = (progressStep / totalSteps) * 90; // Leave 10% for completion
+                    updateProgress('cleanProgress', percentage);
+
+                    if (progressStep < totalSteps) {
+                        document.getElementById('cleanFileName').textContent = 'Deleting files... (' + Math.round(percentage) + '%)';
+                    }
+                }, 200);
 
                 fetch('/clean', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
-                    hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
-                    showAlert('cleanResult', data.success ? data.message : data.error, data.success);
-                    if (data.success) listFiles();
+                    clearInterval(progressInterval);
+                    updateProgress('cleanProgress', 100);
+                    document.getElementById('cleanFileName').textContent = 'Cleanup completed!';
+
+                    setTimeout(() => {
+                        hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
+                        hideProgress('cleanProgress');
+                        showAlert('cleanResult', data.success ? data.message : data.error, data.success);
+                        if (data.success) listFiles();
+                    }, 800);
                 })
                 .catch(error => {
+                    clearInterval(progressInterval);
                     hideLoading('cleanBtn', 'cleanText', 'Delete All Files');
+                    hideProgress('cleanProgress');
                     showAlert('cleanResult', 'Clean failed: ' + error.message, false);
                 });
             })
