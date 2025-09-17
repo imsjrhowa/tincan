@@ -1,5 +1,7 @@
 # TinCan
 
+![TinCan](./assets/tincan.png)
+
 A simple CLI tool for transferring files between machines using Amazon S3 as intermediary storage.
 
 ## Features
