@@ -17,6 +17,9 @@ var rootCmd = &cobra.Command{
 	Use:   "tincan",
 	Short: "TinCan - Simple file transfer via S3",
 	Long:  `TinCan allows you to upload files to S3 from one machine and download them from another.`,
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
 }
 
 func main() {
@@ -30,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(uploadCmd)
 	rootCmd.AddCommand(downloadCmd)
 	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(cleanCmd)
 	rootCmd.AddCommand(webCmd)
 	rootCmd.AddCommand(versionCmd)

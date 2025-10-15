@@ -11,7 +11,12 @@
       "Bash(git check-ignore:*)",
       "Bash(./tincan version)",
       "Bash(./tincan web)",
-      "Bash(PORT=8081 ./tincan web)"
+      "Bash(PORT=8081 ./tincan web)",
+      "Bash(./tincan.exe --help)",
+      "Bash(./tincan.exe delete --help)",
+      "Bash(./build.bat)",
+      "Bash(./tincan.exe version)",
+      "Bash(./tincan.exe completion --help)"
     ],
     "deny": [],
     "ask": []
